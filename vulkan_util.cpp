@@ -64,6 +64,7 @@ namespace vulkanDetails
         createInstance(window);
         setupDebugMessenger();
         pickPhysicalDevice();
+        createLogicalDevice();
     }
 
     void VulkanBase::printExtensionProperties()
@@ -86,6 +87,7 @@ namespace vulkanDetails
         {
             destroyDebugUtilsMessengerExt(instance, callback, nullptr);
         }
+        vkDestroyDevice(device, nullptr);
         vkDestroyInstance(instance, nullptr);
     }
 
@@ -204,10 +206,38 @@ namespace vulkanDetails
         }
         return indices;
     }
-
-    void VulkanBase::pickPhysicalDevice() const
+    
+    void VulkanBase::createLogicalDevice()
     {
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+        QueueFamilyIndices indices = findQueueFamilies(physical_device);
+        VkDeviceQueueCreateInfo queue_create_info {};
+        queue_create_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = indices.graphics_family.value();
+        queue_create_info.queueCount       = 1;
+        float queue_priority = 1.0f;
+        queue_create_info.pQueuePriorities = &queue_priority;
+        VkPhysicalDeviceFeatures device_features {};
+        VkDeviceCreateInfo device_create_info {};
+        device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        device_create_info.pQueueCreateInfos = &queue_create_info;
+        device_create_info.queueCreateInfoCount = 1;
+        device_create_info.pEnabledFeatures = &device_features;
+        device_create_info.enabledExtensionCount = 0;
+        if(enable_validation_layers){
+          device_create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+          device_create_info.ppEnabledLayerNames = validation_layers.data();
+        }
+        else{
+          device_create_info.enabledLayerCount = 0;
+        }
+        if(vkCreateDevice(physical_device, &device_create_info, nullptr, &device) != VK_SUCCESS){
+          throw std::runtime_error("failed to create logical device!");
+        }
+        vkGetDeviceQueue(device, indices.graphics_family.value(), 0, &graphics_queue);
+    }
+
+    void VulkanBase::pickPhysicalDevice()
+    {
         uint32_t         device_count    = 0;
         vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
         if (device_count == 0)
