@@ -1,6 +1,7 @@
 #include "vulkan_util.hpp"
 #include <SDL_vulkan.h>
 #include <cstring>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 // Add this line to include the necessary header file
@@ -62,6 +63,7 @@ namespace vulkanDetails
     {
         createInstance(window);
         setupDebugMessenger();
+        pickPhysicalDevice();
     }
 
     void VulkanBase::printExtensionProperties()
@@ -77,7 +79,7 @@ namespace vulkanDetails
         }
     }
 
-    void VulkanBase::cleanup()
+    void VulkanBase::cleanup() const
     {
 
         if (enable_validation_layers)
@@ -169,6 +171,62 @@ namespace vulkanDetails
         if (func != nullptr)
         {
             func(instance, debugMessenger, pAllocator);
+        }
+    }
+
+    bool VulkanBase::isDeviceSuitable(VkPhysicalDevice device)
+    {
+        VkPhysicalDeviceProperties device_properties;
+        vkGetPhysicalDeviceProperties(device, &device_properties);
+        VkPhysicalDeviceFeatures device_features;
+        vkGetPhysicalDeviceFeatures(device, &device_features);
+
+        QueueFamilyIndices indices = findQueueFamilies(device);
+        return indices.isComplete() && device_features.geometryShader;
+    }
+
+    QueueFamilyIndices VulkanBase::findQueueFamilies(VkPhysicalDevice device)
+    {
+        QueueFamilyIndices indices;
+        uint32_t           queue_family_count = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+        std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+        int i = 0;
+        for(const auto& queue_family : queue_families)
+        {
+          if(queue_family.queueCount > 0 && queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+          {
+            indices.graphics_family = i;
+            break;
+          }
+          i++;
+        }
+        return indices;
+    }
+
+    void VulkanBase::pickPhysicalDevice() const
+    {
+        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+        uint32_t         device_count    = 0;
+        vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+        if (device_count == 0)
+        {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+        std::vector<VkPhysicalDevice> devices(device_count);
+        vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+        for (const auto& device : devices)
+        {
+            if (isDeviceSuitable(device))
+            {
+                physical_device = device;
+                break;
+            }
+        }
+        if (physical_device == VK_NULL_HANDLE)
+        {
+            throw std::runtime_error("failed to fina a suitable GPU!");
         }
     }
 
