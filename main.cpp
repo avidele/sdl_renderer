@@ -7,11 +7,15 @@
 #include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan.h>
+#include <vector>
 
 using namespace vulkanDetails;
 
-const uint32_t WIDTH  = 800;
-const uint32_t HEIGHT = 600;
+constexpr uint32_t WIDTH  = 800;
+constexpr uint32_t HEIGHT = 600;
+
+
+
 
 int main()
 {
