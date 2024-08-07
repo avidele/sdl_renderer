@@ -14,9 +14,6 @@ using namespace vulkanDetails;
 constexpr uint32_t WIDTH  = 800;
 constexpr uint32_t HEIGHT = 600;
 
-
-
-
 int main()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)

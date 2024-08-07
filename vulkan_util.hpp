@@ -5,13 +5,19 @@
 #include <cstdint>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <set>
 
 namespace vulkanDetails
 {
+    struct SwapChainSupportDetails
+    {
+        VkSurfaceCapabilitiesKHR        capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR>   present_modes;
+    };
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphics_family;
@@ -45,11 +51,17 @@ namespace vulkanDetails
                                                   VkDebugUtilsMessengerEXT     debugMessenger,
                                                   const VkAllocationCallbacks* pAllocator);
 
-        void               pickPhysicalDevice();
-        bool               isDeviceSuitable(VkPhysicalDevice device);
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-        void               createLogicalDevice();
-        void               createSurface(SDL_Window* window);
+        void                      pickPhysicalDevice();
+        bool                      isDeviceSuitable(VkPhysicalDevice device);
+        QueueFamilyIndices        findQueueFamilies(VkPhysicalDevice device);
+        void                      createLogicalDevice();
+        void                      createSurface(SDL_Window* window);
+        static bool               checkDeviceExtensionSupport(VkPhysicalDevice device);
+        SwapChainSupportDetails   querySwapChainSupport(VkPhysicalDevice device);
+        static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
+        VkPresentModeKHR          chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+        VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+        void                      createSwapChain();
 
     private:
         VulkanBase() = default;
@@ -61,5 +73,9 @@ namespace vulkanDetails
         VkQueue                  graphics_queue {};
         VkQueue                  present_queue {};
         VkSurfaceKHR             surface {};
+        VkSwapchainKHR           swap_chain {};
+        std::vector<VkImage>     swap_chain_images;
+        VkFormat                 swap_chain_image_format;
+        VkExtent2D               swap_chain_extent;
     };
 } // namespace vulkanDetails
