@@ -8,13 +8,16 @@
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include <set>
 
 namespace vulkanDetails
 {
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphics_family;
-        [[nodiscard]] bool      isComplete() const { return graphics_family.has_value(); }
+        std::optional<uint32_t> present_family;
+
+        [[nodiscard]] bool isComplete() const { return graphics_family.has_value() && present_family.has_value(); }
     };
 
     class VulkanBase
@@ -42,18 +45,21 @@ namespace vulkanDetails
                                                   VkDebugUtilsMessengerEXT     debugMessenger,
                                                   const VkAllocationCallbacks* pAllocator);
 
-        void                      pickPhysicalDevice();
-        static bool               isDeviceSuitable(VkPhysicalDevice device);
-        static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-        void createLogicalDevice();
+        void               pickPhysicalDevice();
+        bool               isDeviceSuitable(VkPhysicalDevice device);
+        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+        void               createLogicalDevice();
+        void               createSurface(SDL_Window* window);
 
     private:
         VulkanBase() = default;
         static VulkanBase*       m_singleton;
-        VkInstance               instance{};
-        VkDebugUtilsMessengerEXT callback{};
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-        VkDevice device{};
-        VkQueue  graphics_queue{};
+        VkInstance               instance {};
+        VkDebugUtilsMessengerEXT callback {};
+        VkPhysicalDevice         physical_device = VK_NULL_HANDLE;
+        VkDevice                 device {};
+        VkQueue                  graphics_queue {};
+        VkQueue                  present_queue {};
+        VkSurfaceKHR             surface {};
     };
 } // namespace vulkanDetails
