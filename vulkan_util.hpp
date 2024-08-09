@@ -3,6 +3,7 @@
 #include <SDL2/SDL_vulkan.h>
 #include <SDL_video.h>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <set>
@@ -62,6 +63,10 @@ namespace vulkanDetails
         VkPresentModeKHR          chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
         VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
         void                      createSwapChain();
+        void                      createImageViews();
+        void                      createGraphicsPipeline();
+        VkShaderModule            createShaderModule(const std::vector<char>& code);
+        void createRenderPass();
 
     private:
         VulkanBase() = default;
@@ -75,7 +80,25 @@ namespace vulkanDetails
         VkSurfaceKHR             surface {};
         VkSwapchainKHR           swap_chain {};
         std::vector<VkImage>     swap_chain_images;
-        VkFormat                 swap_chain_image_format;
-        VkExtent2D               swap_chain_extent;
+        VkFormat                 swap_chain_image_format {};
+        VkExtent2D               swap_chain_extent {};
+        std::vector<VkImageView> swap_chain_image_views;
+        VkRenderPass render_pass{};
+        VkPipelineLayout pipeline_layout{};
     };
+    static std::vector<char> readFile(const std::string& filename)
+    {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        if (!file.is_open())
+        {
+            throw std::runtime_error("failed to open file!");
+        }
+        size_t            file_size = file.tellg();
+        std::vector<char> buffer(file_size);
+        file.seekg(0);
+        file.read(buffer.data(), static_cast<std::streamsize>(file_size));
+        file.close();
+        return buffer;
+    }
+
 } // namespace vulkanDetails
