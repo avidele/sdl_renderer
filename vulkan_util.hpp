@@ -66,25 +66,37 @@ namespace vulkanDetails
         void                      createImageViews();
         void                      createGraphicsPipeline();
         VkShaderModule            createShaderModule(const std::vector<char>& code);
-        void createRenderPass();
+        void                      createRenderPass();
+        void                      createFrameBuffer();
+        void                      createCommandPool();
+        void                      createCommandBuffers();
+        void                      drawFrame();
+        void                      mainLoop(SDL_Window* window);
+        void                      createSemaphores();
 
     private:
         VulkanBase() = default;
-        static VulkanBase*       m_singleton;
-        VkInstance               instance {};
-        VkDebugUtilsMessengerEXT callback {};
-        VkPhysicalDevice         physical_device = VK_NULL_HANDLE;
-        VkDevice                 device {};
-        VkQueue                  graphics_queue {};
-        VkQueue                  present_queue {};
-        VkSurfaceKHR             surface {};
-        VkSwapchainKHR           swap_chain {};
-        std::vector<VkImage>     swap_chain_images;
-        VkFormat                 swap_chain_image_format {};
-        VkExtent2D               swap_chain_extent {};
-        std::vector<VkImageView> swap_chain_image_views;
-        VkRenderPass render_pass{};
-        VkPipelineLayout pipeline_layout{};
+        static VulkanBase*           m_singleton;
+        VkInstance                   instance {};
+        VkDebugUtilsMessengerEXT     callback {};
+        VkPhysicalDevice             physical_device = VK_NULL_HANDLE;
+        VkDevice                     device {};
+        VkQueue                      graphics_queue {};
+        VkQueue                      present_queue {};
+        VkSurfaceKHR                 surface {};
+        VkSwapchainKHR               swap_chain {};
+        std::vector<VkImage>         swap_chain_images;
+        VkFormat                     swap_chain_image_format {};
+        VkExtent2D                   swap_chain_extent {};
+        std::vector<VkImageView>     swap_chain_image_views;
+        VkRenderPass                 render_pass {};
+        VkPipelineLayout             pipeline_layout {};
+        VkPipeline                   graphics_pipeline {};
+        std::vector<VkFramebuffer>   swap_chain_framebuffers;
+        VkCommandPool                command_pool {};
+        std::vector<VkCommandBuffer> command_buffers;
+        VkSemaphore                  image_available_semaphore {};
+        VkSemaphore                  render_finished_semaphore {};
     };
     static std::vector<char> readFile(const std::string& filename)
     {

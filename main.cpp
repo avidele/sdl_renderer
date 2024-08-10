@@ -1,13 +1,15 @@
 #include <SDL_config.h>
 #include <SDL_render.h>
+#include <SDL_video.h>
+#include <vulkan/vulkan_core.h>
 #define SDL_MAIN_HANDLED
 #include "vulkan_util.hpp"
 #include <SDL2/SDL.h>
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
-#include <vulkan/vulkan.h>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 using namespace vulkanDetails;
 
@@ -44,12 +46,7 @@ int main()
                 quit = true;
             }
         }
-
-        // For simplicity, this example doesn't actually use Vulkan to draw
-        // Instead, it demonstrates SDL window and event loop
-        SDL_SetRenderDrawColor(SDL_GetRenderer(window), 0, 255, 255, 255);
-        SDL_RenderClear(SDL_GetRenderer(window));
-        SDL_RenderPresent(SDL_GetRenderer(window));
+        // singleton->drawFrame();
     }
     singleton->cleanup();
     SDL_DestroyWindow(window);
