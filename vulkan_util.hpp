@@ -60,8 +60,8 @@ namespace vulkanDetails
         static bool               checkDeviceExtensionSupport(VkPhysicalDevice device);
         SwapChainSupportDetails   querySwapChainSupport(VkPhysicalDevice device);
         static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
-        VkPresentModeKHR          chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-        VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+        static VkPresentModeKHR   chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+        static VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
         void                      createSwapChain();
         void                      createImageViews();
         void                      createGraphicsPipeline();
@@ -72,7 +72,7 @@ namespace vulkanDetails
         void                      createCommandBuffers();
         void                      drawFrame();
         void                      mainLoop(SDL_Window* window);
-        void                      createSemaphores();
+        void                      createSyncObject();
 
     private:
         VulkanBase() = default;
@@ -95,8 +95,10 @@ namespace vulkanDetails
         std::vector<VkFramebuffer>   swap_chain_framebuffers;
         VkCommandPool                command_pool {};
         std::vector<VkCommandBuffer> command_buffers;
-        VkSemaphore                  image_available_semaphore {};
-        VkSemaphore                  render_finished_semaphore {};
+        std::vector<VkSemaphore>     image_available_semaphores;
+        std::vector<VkSemaphore>     render_finished_semaphores;
+        std::vector<VkFence>         in_flight_fences;
+        uint32_t                     current_frame = 0;
     };
     static std::vector<char> readFile(const std::string& filename)
     {

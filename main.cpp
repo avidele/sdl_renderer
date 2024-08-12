@@ -7,8 +7,6 @@
 #include <SDL2/SDL.h>
 #include <cstdlib>
 #include <iostream>
-#include <stdexcept>
-#include <vector>
 #include <vulkan/vulkan.h>
 
 using namespace vulkanDetails;
@@ -46,7 +44,7 @@ int main()
                 quit = true;
             }
         }
-        // singleton->drawFrame();
+        singleton->drawFrame();
     }
     singleton->cleanup();
     SDL_DestroyWindow(window);
