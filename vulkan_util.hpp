@@ -30,14 +30,15 @@ namespace vulkanDetails
     class VulkanBase
     {
     public:
+        void    initWindow();
         static VulkanBase* getInstance();
-        void               createInstance(SDL_Window* window);
+        void               createInstance();
 
-        void                                  initVulkan(SDL_Window* window);
+        void                                  initVulkan();
         static void                           printExtensionProperties();
         void                                  cleanup() const;
         static bool                           checkValidationLayerSupport(std::vector<const char*>& validation_layers);
-        static std::vector<const char*>       getRequiredExtensions(SDL_Window* window);
+        std::vector<const char*>       getRequiredExtensions();
         static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
                                                             VkDebugUtilsMessageTypeFlagsEXT             messageType,
                                                             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -56,12 +57,12 @@ namespace vulkanDetails
         bool                      isDeviceSuitable(VkPhysicalDevice device);
         QueueFamilyIndices        findQueueFamilies(VkPhysicalDevice device);
         void                      createLogicalDevice();
-        void                      createSurface(SDL_Window* window);
+        void                      createSurface();
         static bool               checkDeviceExtensionSupport(VkPhysicalDevice device);
         SwapChainSupportDetails   querySwapChainSupport(VkPhysicalDevice device);
         static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
         static VkPresentModeKHR   chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-        static VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+        VkExtent2D                chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
         void                      createSwapChain();
         void                      createImageViews();
         void                      createGraphicsPipeline();
@@ -71,10 +72,14 @@ namespace vulkanDetails
         void                      createCommandPool();
         void                      createCommandBuffers();
         void                      drawFrame();
-        void                      mainLoop(SDL_Window* window);
+        void                      mainLoop();
         void                      createSyncObject();
+        void                      recreateSwapChain();
+        void                      cleanupSwapChain() const;
+        void framebufferResizeCallback();
 
     private:
+        SDL_Window* window{};
         VulkanBase() = default;
         static VulkanBase*           m_singleton;
         VkInstance                   instance {};
@@ -99,6 +104,7 @@ namespace vulkanDetails
         std::vector<VkSemaphore>     render_finished_semaphores;
         std::vector<VkFence>         in_flight_fences;
         uint32_t                     current_frame = 0;
+        bool                         framebuffer_resized = false;
     };
     static std::vector<char> readFile(const std::string& filename)
     {

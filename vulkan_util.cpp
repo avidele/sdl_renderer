@@ -1,4 +1,5 @@
 #include "vulkan_util.hpp"
+#include <SDL.h>
 #include <SDL_events.h>
 #include <SDL_video.h>
 #include <SDL_vulkan.h>
@@ -13,10 +14,10 @@
 
 namespace vulkanDetails
 {
-    constexpr uint32_t       WIDTH             = 800;
-    constexpr uint32_t       HEIGHT            = 600;
-    constexpr int           MAX_FRAMES_IN_FLIGHT = 2;
-    std::vector<const char*> validation_layers = {
+    constexpr uint32_t       WIDTH                = 800;
+    constexpr uint32_t       HEIGHT               = 600;
+    constexpr int            MAX_FRAMES_IN_FLIGHT = 2;
+    std::vector<const char*> validation_layers    = {
         "VK_LAYER_KHRONOS_validation",
     };
     const std::vector<const char*> device_extensions = {
@@ -37,7 +38,28 @@ namespace vulkanDetails
         return m_singleton;
     }
 
-    void VulkanBase::createInstance(SDL_Window* window)
+    void VulkanBase::initWindow()
+    {
+        if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        {
+            std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+            return;
+        }
+
+        window = SDL_CreateWindow("Vulkan",
+                                  SDL_WINDOWPOS_CENTERED,
+                                  SDL_WINDOWPOS_CENTERED,
+                                  WIDTH,
+                                  HEIGHT,
+                                  SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+        if (!window)
+        {
+            std::cerr << "Failed to create SDL window: " << SDL_GetError() << std::endl;
+            SDL_Quit();
+            return;
+        }
+    }
+    void VulkanBase::createInstance()
     {
         VkApplicationInfo app_info {};
         app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -51,7 +73,7 @@ namespace vulkanDetails
         create_info.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         create_info.pApplicationInfo = &app_info;
 
-        auto extensions                     = getRequiredExtensions(window);
+        auto extensions                     = getRequiredExtensions();
         create_info.enabledExtensionCount   = static_cast<uint32_t>(extensions.size());
         create_info.ppEnabledExtensionNames = extensions.data();
 
@@ -70,11 +92,11 @@ namespace vulkanDetails
         }
     }
 
-    void VulkanBase::initVulkan(SDL_Window* window)
+    void VulkanBase::initVulkan()
     {
-        createInstance(window);
+        createInstance();
         setupDebugMessenger();
-        createSurface(window);
+        createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
@@ -102,35 +124,27 @@ namespace vulkanDetails
 
     void VulkanBase::cleanup() const
     {
+        cleanupSwapChain();
 
-        for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             vkDestroySemaphore(device, render_finished_semaphores[i], nullptr);
             vkDestroySemaphore(device, image_available_semaphores[i], nullptr);
             vkDestroyFence(device, in_flight_fences[i], nullptr);
         }
 
-        for (const auto& image_view : swap_chain_image_views)
-        {
-            vkDestroyImageView(device, image_view, nullptr);
-        }
-        vkDestroySwapchainKHR(device, swap_chain, nullptr);
-        vkDestroyPipeline(device, graphics_pipeline, nullptr);
-        vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-        vkDestroyRenderPass(device, render_pass, nullptr);
-        for (const auto& framebuffer : swap_chain_framebuffers)
-        {
-            vkDestroyFramebuffer(device, framebuffer, nullptr);
-        }
         vkDestroyCommandPool(device, command_pool, nullptr);
-
         if (enable_validation_layers)
         {
             destroyDebugUtilsMessengerExt(instance, callback, nullptr);
         }
-        vkDestroySurfaceKHR(instance, surface, nullptr);
+
         vkDestroyDevice(device, nullptr);
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+
         vkDestroyInstance(instance, nullptr);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
     }
 
     bool VulkanBase::checkValidationLayerSupport(std::vector<const char*>& validation_layers)
@@ -312,7 +326,7 @@ namespace vulkanDetails
         vkGetDeviceQueue(device, indices.present_family.value(), 0, &present_queue);
     }
 
-    void VulkanBase::createSurface(SDL_Window* window)
+    void VulkanBase::createSurface()
     {
 
         if (!SDL_Vulkan_CreateSurface(window, instance, &surface))
@@ -399,11 +413,15 @@ namespace vulkanDetails
         }
         else
         {
-            VkExtent2D actual_extent = {WIDTH, HEIGHT};
-            actual_extent.width      = std::max(capabilities.minImageExtent.width,
+            int height, width;
+            SDL_Vulkan_GetDrawableSize(window, &width, &height);
+            VkExtent2D actual_extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+
+            actual_extent.width  = std::max(capabilities.minImageExtent.width,
                                            std::min(capabilities.maxImageExtent.width, actual_extent.width));
-            actual_extent.height     = std::max(capabilities.minImageExtent.height,
+            actual_extent.height = std::max(capabilities.minImageExtent.height,
                                             std::min(capabilities.maxImageExtent.height, actual_extent.height));
+           
             return actual_extent;
         }
     }
@@ -414,7 +432,9 @@ namespace vulkanDetails
         VkSurfaceFormatKHR      surface_format     = chooseSwapSurfaceFormat(swap_chain_support.formats);
         VkPresentModeKHR        present_mode       = chooseSwapPresentMode(swap_chain_support.present_modes);
         VkExtent2D              extent             = chooseSwapExtent(swap_chain_support.capabilities);
+         std::cout << extent.width << " " << extent.height << std::endl;
         uint32_t                image_count        = swap_chain_support.capabilities.minImageCount + 1;
+        //uint32_t                image_count        = 1;
         if (swap_chain_support.capabilities.maxImageCount > 0 &&
             image_count > swap_chain_support.capabilities.maxImageCount)
         {
@@ -454,7 +474,7 @@ namespace vulkanDetails
         {
             throw std::runtime_error("failed to create swap chain!");
         }
-        vkGetSwapchainImagesKHR(device, swap_chain, &image_count, swap_chain_images.data());
+        vkGetSwapchainImagesKHR(device, swap_chain, &image_count, nullptr);
         swap_chain_images.resize(image_count);
         vkGetSwapchainImagesKHR(device, swap_chain, &image_count, swap_chain_images.data());
         swap_chain_image_format = surface_format.format;
@@ -780,7 +800,7 @@ namespace vulkanDetails
         fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             if (vkCreateSemaphore(device, &semaphore_info, nullptr, &image_available_semaphores[i]) != VK_SUCCESS ||
                 vkCreateSemaphore(device, &semaphore_info, nullptr, &render_finished_semaphores[i]) != VK_SUCCESS ||
@@ -791,30 +811,56 @@ namespace vulkanDetails
         }
     }
 
-    void VulkanBase::mainLoop(SDL_Window*  /*window*/)
+    void VulkanBase::mainLoop()
     {
-        while (true)
+        SDL_Event e;
+        bool      quit = false;
+        while (!quit)
         {
-            SDL_Event event;
-            while (SDL_PollEvent(&event))
+            while (SDL_PollEvent(&e))
             {
-                if (event.type == SDL_QUIT)
+                switch (e.type)
                 {
-                    return;
+                    case SDL_QUIT:
+                        quit = true;
+                        break;
+                    case SDL_WINDOWEVENT:
+                        if (e.window.event == SDL_WINDOWEVENT_RESIZED)
+                        {
+                            framebufferResizeCallback();
+                        }
+                        break;
+                    default:
+                        break;
                 }
             }
             drawFrame();
         }
-        vkDeviceWaitIdle(device);
     }
+
+    void VulkanBase::framebufferResizeCallback() { framebuffer_resized = true; }
 
     void VulkanBase::drawFrame()
     {
         vkWaitForFences(device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
-        vkResetFences(device, 1, &in_flight_fences[current_frame]);
-        uint32_t image_index;
 
-        vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index);
+        uint32_t image_index;
+        VkResult result = vkAcquireNextImageKHR(
+            device, swap_chain, UINT64_MAX, image_available_semaphores[current_frame], VK_NULL_HANDLE, &image_index);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized)
+        {
+            framebuffer_resized = false;
+            recreateSwapChain();
+            return;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        {
+            throw std::runtime_error("failed to acquire swap chain image!");
+        }
+
+        vkResetFences(device, 1, &in_flight_fences[current_frame]);
+
         VkSubmitInfo submit_info {};
         submit_info.sType                      = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         VkSemaphore          wait_semaphores[] = {image_available_semaphores[current_frame]};
@@ -841,7 +887,16 @@ namespace vulkanDetails
         present_info.pSwapchains        = swap_chains;
         present_info.pImageIndices      = &image_index;
         present_info.pResults           = nullptr;
-        vkQueuePresentKHR(present_queue, &present_info);
+        result                          = vkQueuePresentKHR(present_queue, &present_info);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized)
+        {
+            framebuffer_resized = false;
+            recreateSwapChain();
+        }
+        else if (result != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to present swap chain image!");
+        }
         current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
@@ -873,7 +928,7 @@ namespace vulkanDetails
         }
     }
 
-    std::vector<const char*> VulkanBase::getRequiredExtensions(SDL_Window* window)
+    std::vector<const char*> VulkanBase::getRequiredExtensions()
     {
         uint32_t extension_count = 0;
         if (!SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr))
@@ -890,5 +945,40 @@ namespace vulkanDetails
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
         return extensions;
+    }
+
+    void VulkanBase::recreateSwapChain()
+    {
+        int height, width = 0;
+        while (width == 0 || height == 0)
+        {
+            SDL_Vulkan_GetDrawableSize(window, &width, &height);
+            SDL_PollEvent(nullptr);
+        }
+        vkDeviceWaitIdle(device);
+        cleanupSwapChain();
+
+        createSwapChain();
+        createImageViews();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFrameBuffer();
+        createCommandBuffers();
+    }
+    void VulkanBase::cleanupSwapChain() const
+    {
+        for (const auto& framebuffer : swap_chain_framebuffers)
+        {
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+        vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+        vkDestroyPipeline(device, graphics_pipeline, nullptr);
+        vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+        vkDestroyRenderPass(device, render_pass, nullptr);
+                for (const auto& image_view : swap_chain_image_views)
+        {
+            vkDestroyImageView(device, image_view, nullptr);
+        }
+        vkDestroySwapchainKHR(device, swap_chain, nullptr);
     }
 } // namespace vulkanDetails
