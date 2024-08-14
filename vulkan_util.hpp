@@ -12,8 +12,15 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 namespace vulkanDetails
 {
+    struct UniformBufferObject{
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+    };
+
     struct Vertex{
         glm::vec2 pos;
         glm::vec3 color;
@@ -111,6 +118,11 @@ namespace vulkanDetails
                           VkDeviceMemory& buffer_memory);
         void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
         void createIndexBuffer();
+        void createDescriptorSetLayout();      
+        void createUniformBuffer();
+        void updateUniformBuffer(uint32_t current_image);
+        void createDescriptorPool();
+        void createDescriptorSets();
     private:
         SDL_Window* window{};
         VulkanBase() = default;
@@ -142,6 +154,12 @@ namespace vulkanDetails
         VkDeviceMemory vertex_buffer_memory{};
         VkBuffer    index_buffer{};
         VkDeviceMemory index_buffer_memory{};
+        std::vector<VkBuffer> uniform_buffers;
+        std::vector<VkDeviceMemory> uniform_buffers_memory;
+        VkDescriptorSetLayout descriptor_set_layout{};
+        VkDescriptorPool descriptor_pool{};
+        std::vector<VkDescriptorSet> descriptor_sets;
+  
     };
     static std::vector<char> readFile(const std::string& filename)
     {
