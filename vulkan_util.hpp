@@ -110,6 +110,7 @@ namespace vulkanDetails
         void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
                           VkDeviceMemory& buffer_memory);
         void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+        void createIndexBuffer();
     private:
         SDL_Window* window{};
         VulkanBase() = default;
@@ -139,6 +140,8 @@ namespace vulkanDetails
         bool                         framebuffer_resized = false;
         VkBuffer    vertex_buffer{};
         VkDeviceMemory vertex_buffer_memory{};
+        VkBuffer    index_buffer{};
+        VkDeviceMemory index_buffer_memory{};
     };
     static std::vector<char> readFile(const std::string& filename)
     {
