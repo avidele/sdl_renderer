@@ -23,6 +23,9 @@ namespace vulkanDetails
     const std::vector<const char*> device_extensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     };
+    const std::vector<Vertex> vertices = {{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+                                          {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 #ifdef NOEBUG
     constexpr bool enable_validation_layers = false;
 #else
@@ -105,8 +108,94 @@ namespace vulkanDetails
         createGraphicsPipeline();
         createFrameBuffer();
         createCommandPool();
+        createVertexBuffer();
         createCommandBuffers();
         createSyncObject();
+    }
+
+    void VulkanBase::createVertexBuffer()
+    {
+        VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+        createBuffer(buffer_size,
+                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     vertex_buffer,
+                     vertex_buffer_memory);
+        void* data;
+        vkMapMemory(device, vertex_buffer_memory, 0, buffer_size, 0, &data);
+        memcpy(data, vertices.data(), static_cast<size_t>(buffer_size));
+        vkUnmapMemory(device, vertex_buffer_memory);
+        createBuffer(buffer_size,
+                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     vertex_buffer,
+                     vertex_buffer_memory);
+    }
+
+    uint32_t VulkanBase::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties mem_properties;
+        vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
+        for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
+        {
+            if (typeFilter & (1 << i) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                //  std::cout << "Memory type properties: " << mem_properties.memoryTypes[i].propertyFlags << std::endl;
+                return i;
+            }
+        }
+        throw std::runtime_error("failed to find suitable memory type!");
+    }
+
+    void VulkanBase::createBuffer(VkDeviceSize          size,
+                                  VkBufferUsageFlags    usage,
+                                  VkMemoryPropertyFlags properties,
+                                  VkBuffer&             buffer,
+                                  VkDeviceMemory&       buffer_memory)
+    {
+        VkBufferCreateInfo buffer_info = {};
+        buffer_info.sType              = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size               = size;
+        buffer_info.usage              = usage;
+        buffer_info.sharingMode        = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(device, &buffer_info, nullptr, &buffer) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create buffer!");
+        }
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(device, buffer, &mem_requirements);
+        VkMemoryAllocateInfo alloc_info {};
+        alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize  = mem_requirements.size;
+        alloc_info.memoryTypeIndex = findMemoryType(mem_requirements.memoryTypeBits, properties);
+        if (vkAllocateMemory(device, &alloc_info, nullptr, &buffer_memory) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate buffer memory!");
+        }
+        vkBindBufferMemory(device, buffer, buffer_memory, 0);
+    }
+
+    void VulkanBase::copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+    {
+        VkCommandBufferAllocateInfo alloc_info {};
+        alloc_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandPool        = command_pool;
+        alloc_info.commandBufferCount = 1;
+        VkCommandBuffer command_buffer;
+        vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
+        VkCommandBufferBeginInfo begin_info {};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(command_buffer, &begin_info); 
+        VkBufferCopy copy_region {};
+        copy_region.srcOffset = 0;
+        copy_region.dstOffset = 0;
+        copy_region.size = size;
+        vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
     }
 
     void VulkanBase::printExtensionProperties()
@@ -125,7 +214,7 @@ namespace vulkanDetails
     void VulkanBase::cleanup() const
     {
         cleanupSwapChain();
-
+        vkDestroyBuffer(device, vertex_buffer, nullptr);
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             vkDestroySemaphore(device, render_finished_semaphores[i], nullptr);
@@ -421,7 +510,7 @@ namespace vulkanDetails
                                            std::min(capabilities.maxImageExtent.width, actual_extent.width));
             actual_extent.height = std::max(capabilities.minImageExtent.height,
                                             std::min(capabilities.maxImageExtent.height, actual_extent.height));
-           
+
             return actual_extent;
         }
     }
@@ -432,9 +521,9 @@ namespace vulkanDetails
         VkSurfaceFormatKHR      surface_format     = chooseSwapSurfaceFormat(swap_chain_support.formats);
         VkPresentModeKHR        present_mode       = chooseSwapPresentMode(swap_chain_support.present_modes);
         VkExtent2D              extent             = chooseSwapExtent(swap_chain_support.capabilities);
-         std::cout << extent.width << " " << extent.height << std::endl;
-        uint32_t                image_count        = swap_chain_support.capabilities.minImageCount + 1;
-        //uint32_t                image_count        = 1;
+        std::cout << extent.width << " " << extent.height << std::endl;
+        uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
+        // uint32_t                image_count        = 1;
         if (swap_chain_support.capabilities.maxImageCount > 0 &&
             image_count > swap_chain_support.capabilities.maxImageCount)
         {
@@ -571,11 +660,14 @@ namespace vulkanDetails
         VkPipelineShaderStageCreateInfo shader_stages[] = {vertex_shader_stage_info, fragment_shader_stage_info};
 
         VkPipelineVertexInputStateCreateInfo vertex_input_info {};
+        auto                                 binding_description    = Vertex::getBindingDescription();
+        auto                                 attribute_descriptions = Vertex::getAttributeDescriptions();
         vertex_input_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_info.vertexBindingDescriptionCount   = 0;
-        vertex_input_info.pVertexBindingDescriptions      = nullptr;
-        vertex_input_info.vertexAttributeDescriptionCount = 0;
-        vertex_input_info.pVertexAttributeDescriptions    = nullptr;
+        vertex_input_info.vertexBindingDescriptionCount   = 1;
+        vertex_input_info.pVertexBindingDescriptions      = &binding_description;
+        vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
+        vertex_input_info.pVertexAttributeDescriptions    = attribute_descriptions.data();
+
         VkPipelineInputAssemblyStateCreateInfo input_assembly {};
         input_assembly.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         input_assembly.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -761,6 +853,11 @@ namespace vulkanDetails
 
             vkCmdBeginRenderPass(command_buffers[i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+
+            VkBuffer     vertex_buffers[] = {vertex_buffer};
+            VkDeviceSize offsets          = {0};
+            vkCmdBindVertexBuffers(command_buffers[i], 0, 1, vertex_buffers, &offsets);
+
             vkCmdDraw(command_buffers[i], 3, 1, 0, 0);
 
             vkCmdEndRenderPass(command_buffers[i]);
@@ -967,15 +1064,18 @@ namespace vulkanDetails
     }
     void VulkanBase::cleanupSwapChain() const
     {
+        vkDestroyBuffer(device, vertex_buffer, nullptr);
+        vkFreeMemory(device, vertex_buffer_memory, nullptr);
         for (const auto& framebuffer : swap_chain_framebuffers)
         {
             vkDestroyFramebuffer(device, framebuffer, nullptr);
         }
-        vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+        vkFreeCommandBuffers(
+            device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
         vkDestroyPipeline(device, graphics_pipeline, nullptr);
         vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
         vkDestroyRenderPass(device, render_pass, nullptr);
-                for (const auto& image_view : swap_chain_image_views)
+        for (const auto& image_view : swap_chain_image_views)
         {
             vkDestroyImageView(device, image_view, nullptr);
         }

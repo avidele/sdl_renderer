@@ -4,15 +4,43 @@
 #include <SDL_video.h>
 #include <cstdint>
 #include <fstream>
+#include <glm/ext/vector_float2.hpp>
 #include <iostream>
 #include <optional>
 #include <set>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-
+#include <glm/glm.hpp>
 namespace vulkanDetails
 {
+    struct Vertex{
+        glm::vec2 pos;
+        glm::vec3 color;
+
+        static VkVertexInputBindingDescription getBindingDescription(){
+            VkVertexInputBindingDescription binding_description{};
+            binding_description.binding = 0;
+            binding_description.stride = sizeof(Vertex);
+            binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            return binding_description;
+        }
+
+        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
+        {
+            std::array <VkVertexInputAttributeDescription, 2> attribute_descriptions{};
+            attribute_descriptions[0].binding = 0;
+            attribute_descriptions[0].location = 0;
+            attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+            attribute_descriptions[0].offset = offsetof(Vertex, pos);
+            attribute_descriptions[1].binding = 0;
+            attribute_descriptions[1].location = 1;
+            attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+            attribute_descriptions[1].offset = offsetof(Vertex, color);
+            return attribute_descriptions;
+        }
+    };
+
     struct SwapChainSupportDetails
     {
         VkSurfaceCapabilitiesKHR        capabilities;
@@ -77,7 +105,11 @@ namespace vulkanDetails
         void                      recreateSwapChain();
         void                      cleanupSwapChain() const;
         void framebufferResizeCallback();
-
+        void createVertexBuffer();
+        uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+        void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                          VkDeviceMemory& buffer_memory);
+        void copyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
     private:
         SDL_Window* window{};
         VulkanBase() = default;
@@ -105,6 +137,8 @@ namespace vulkanDetails
         std::vector<VkFence>         in_flight_fences;
         uint32_t                     current_frame = 0;
         bool                         framebuffer_resized = false;
+        VkBuffer    vertex_buffer{};
+        VkDeviceMemory vertex_buffer_memory{};
     };
     static std::vector<char> readFile(const std::string& filename)
     {
