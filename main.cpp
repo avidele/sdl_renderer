@@ -1,8 +1,8 @@
+#define SDL_MAIN_HANDLED
 #include <SDL_config.h>
 #include <SDL_render.h>
 #include <SDL_video.h>
 #include <vulkan/vulkan_core.h>
-#define SDL_MAIN_HANDLED
 #include "vulkan_util.hpp"
 #include <SDL2/SDL.h>
 #include <cstdlib>

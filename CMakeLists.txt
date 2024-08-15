@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.17)
 project(VulkanSDL)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+# set(STB_INCLUDE_DIRS "usr/include/stb")
 find_package(Vulkan REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(glm REQUIRED)

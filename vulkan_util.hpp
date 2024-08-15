@@ -2,6 +2,7 @@
 #include "vulkan/vulkan.h"
 #include <SDL2/SDL_vulkan.h>
 #include <SDL_video.h>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <glm/ext/vector_float2.hpp>
@@ -13,6 +14,8 @@
 #include <vulkan/vulkan_core.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <stb/stb_image.h>
 namespace vulkanDetails
 {
     struct UniformBufferObject{
@@ -24,6 +27,7 @@ namespace vulkanDetails
     struct Vertex{
         glm::vec2 pos;
         glm::vec3 color;
+        glm::vec2 tex_coord;
 
         static VkVertexInputBindingDescription getBindingDescription(){
             VkVertexInputBindingDescription binding_description{};
@@ -33,9 +37,9 @@ namespace vulkanDetails
             return binding_description;
         }
 
-        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
+        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions()
         {
-            std::array <VkVertexInputAttributeDescription, 2> attribute_descriptions{};
+            std::array <VkVertexInputAttributeDescription, 3> attribute_descriptions{};
             attribute_descriptions[0].binding = 0;
             attribute_descriptions[0].location = 0;
             attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -44,6 +48,10 @@ namespace vulkanDetails
             attribute_descriptions[1].location = 1;
             attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
             attribute_descriptions[1].offset = offsetof(Vertex, color);
+            attribute_descriptions[2].binding = 0;
+            attribute_descriptions[2].location = 2;
+            attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+            attribute_descriptions[2].offset = offsetof(Vertex, tex_coord);
             return attribute_descriptions;
         }
     };
@@ -123,6 +131,16 @@ namespace vulkanDetails
         void updateUniformBuffer(uint32_t current_image);
         void createDescriptorPool();
         void createDescriptorSets();
+        void createTextureImage();
+        void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+        VkCommandBuffer beginSingleTimeCommands();
+        void endSingleTimeCommands(VkCommandBuffer command_buffer);
+        void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+        void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+        void createTextureImageView();
+        VkImageView createImageView(VkImage image, VkFormat format);
+        void createTextureSampler();
     private:
         SDL_Window* window{};
         VulkanBase() = default;
@@ -159,7 +177,10 @@ namespace vulkanDetails
         VkDescriptorSetLayout descriptor_set_layout{};
         VkDescriptorPool descriptor_pool{};
         std::vector<VkDescriptorSet> descriptor_sets;
-  
+        VkImage texture_image{};
+        VkDeviceMemory texture_image_memory{};
+        VkImageView texture_image_view{};
+        VkSampler texture_sampler{};
     };
     static std::vector<char> readFile(const std::string& filename)
     {
