@@ -789,21 +789,22 @@ namespace vulkanDetails
 
         VkPhysicalDeviceFeatures device_features {};
         VkDeviceCreateInfo       device_create_info {};
+        
         device_create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         device_create_info.pQueueCreateInfos       = queue_create_infos.data();
         device_create_info.queueCreateInfoCount    = static_cast<uint32_t>(queue_create_infos.size());
         device_create_info.pEnabledFeatures        = &device_features;
         device_create_info.enabledExtensionCount   = static_cast<uint32_t>(device_extensions.size());
         device_create_info.ppEnabledExtensionNames = device_extensions.data();
-        if (enable_validation_layers)
-        {
-            device_create_info.enabledLayerCount   = static_cast<uint32_t>(validation_layers.size());
-            device_create_info.ppEnabledLayerNames = validation_layers.data();
-        }
-        else
-        {
-            device_create_info.enabledLayerCount = 0;
-        }
+        // if (enable_validation_layers)
+        // {
+        //     device_create_info.enabledLayerCount   = static_cast<uint32_t>(validation_layers.size());
+        //     device_create_info.ppEnabledLayerNames = validation_layers.data();
+        // }
+        // else
+        // {
+        device_create_info.enabledLayerCount = 0;
+        //}
 
         if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device) != VK_SUCCESS)
         {

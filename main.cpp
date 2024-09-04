@@ -15,12 +15,10 @@ constexpr uint32_t HEIGHT = 600;
 
 int main()
 {
-
     VulkanBase* singleton = VulkanBase::getInstance();
     singleton->initWindow();
     singleton->initVulkan();
     singleton->mainLoop();
     singleton->cleanup();
-
     return 0;
 }
